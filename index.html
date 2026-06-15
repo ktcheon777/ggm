@@ -22,36 +22,8 @@
     }
 
     header h1 { font-size: 1.8rem; margin-bottom: 4px; }
-    header p  { font-size: 0.9rem; opacity: 0.85; padding-bottom: 14px; }
+    header p  { font-size: 0.9rem; opacity: 0.85; padding-bottom: 20px; }
 
-    /* ── Tab nav ── */
-    .tab-nav {
-      display: flex;
-      max-width: 640px;
-      margin: 0 auto;
-      padding: 0 16px;
-    }
-
-    .tab {
-      flex: 1;
-      padding: 10px 0;
-      border: none;
-      background: rgba(255,255,255,0.15);
-      color: rgba(255,255,255,0.7);
-      font-family: inherit;
-      font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      border-radius: 8px 8px 0 0;
-      transition: background 0.2s, color 0.2s;
-    }
-
-    .tab + .tab { margin-left: 4px; }
-
-    .tab.active {
-      background: #f0f4f8;
-      color: #667eea;
-    }
 
     /* ── Summary cards ── */
     .summary {
@@ -226,8 +198,14 @@
     .dashboard-section {
       max-width: 640px;
       margin: 0 auto;
-      padding: 16px 16px 32px;
-      display: none;
+      padding: 0 16px 32px;
+    }
+
+    .dashboard-title {
+      font-size: 1rem;
+      color: #4a5568;
+      font-weight: 700;
+      margin-bottom: 12px;
     }
 
     .chart-card {
@@ -339,13 +317,8 @@
 <header>
   <h1>📒 가계부</h1>
   <p id="current-date"></p>
-  <div class="tab-nav">
-    <button class="tab active" id="tab-ledger"    onclick="switchTab('ledger')">내역</button>
-    <button class="tab"        id="tab-dashboard" onclick="switchTab('dashboard')">월별 대시보드</button>
-  </div>
 </header>
 
-<!-- ===== 내역 탭 ===== -->
 <div id="ledger-section">
 
   <div class="summary">
@@ -396,7 +369,6 @@
 
 </div>
 
-<!-- ===== 월별 대시보드 탭 ===== -->
 <div class="dashboard-section" id="dashboard-section">
 
   <div class="chart-card">
@@ -422,23 +394,18 @@
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-  const STORAGE_KEY = 'ggm_transactions';
-  let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const SUPABASE_URL = 'https://carzpomuomdifjlvhgca.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhcnpwb211b21kaWZqbHZoZ2NhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0Nzk0OTcsImV4cCI6MjA5NzA1NTQ5N30.SBpS7HNGosnUiUR693bhG5OuI9T2uz_EzcXPc939__s';
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let transactions = [];
 
   const categoryEmoji = {
     급여: '💰', 용돈: '🎁', 식비: '🍚', 교통: '🚌',
     쇼핑: '🛍️', 의료: '🏥', 문화: '🎬', 기타: '📌'
   };
-
-  /* ── Tab switching ── */
-  function switchTab(tab) {
-    document.getElementById('ledger-section').style.display    = tab === 'ledger'    ? '' : 'none';
-    document.getElementById('dashboard-section').style.display = tab === 'dashboard' ? '' : 'none';
-    document.getElementById('tab-ledger').classList.toggle('active',    tab === 'ledger');
-    document.getElementById('tab-dashboard').classList.toggle('active', tab === 'dashboard');
-    if (tab === 'dashboard') renderDashboard();
-  }
 
   /* ── Helpers ── */
   function fmt(n) { return '₩' + Math.abs(n).toLocaleString('ko-KR'); }
@@ -447,8 +414,6 @@
     if (n >= 10000)     return (n / 10000).toFixed(0) + '만';
     return n.toLocaleString();
   }
-
-  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions)); }
 
   function getMonthData() {
     const map = {};
@@ -476,6 +441,7 @@
 
     if (transactions.length === 0) {
       list.innerHTML = '<div class="empty">아직 내역이 없어요.<br>첫 항목을 추가해보세요!</div>';
+      renderDashboard();
       return;
     }
 
@@ -493,6 +459,8 @@
         <button class="btn-delete" onclick="deleteTransaction('${t.id}')">✕</button>
       </div>
     `).join('');
+
+    renderDashboard();
   }
 
   /* ── Dashboard render ── */
@@ -507,11 +475,8 @@
       return;
     }
 
-    // Chart: show last 6 months
     const chartMonths = allMonths.slice(-6);
     drawBarChart(chartMonths, monthMap);
-
-    // Table: all months, newest first
     renderMonthlyTable([...allMonths].reverse(), monthMap);
   }
 
@@ -542,14 +507,12 @@
       Math.max(monthMap[m].income, monthMap[m].expense)
     ), 1);
 
-    // Round yMax to a clean number
     const mag = Math.pow(10, Math.floor(Math.log10(maxVal)));
     const yMax = Math.ceil(maxVal / mag) * mag;
 
     const Y_STEPS = 4;
     ctx.font = `${11 * (W < 400 ? 0.85 : 1)}px Malgun Gothic, sans-serif`;
 
-    // Grid lines + Y labels
     for (let i = 0; i <= Y_STEPS; i++) {
       const y = PAD.top + cH - (i / Y_STEPS) * cH;
       ctx.strokeStyle = '#e2e8f0';
@@ -565,7 +528,6 @@
       ctx.fillText(fmtY((i / Y_STEPS) * yMax), PAD.left - 6, y);
     }
 
-    // Bars
     const n = months.length;
     const groupW = cW / n;
     const barW   = Math.min(groupW * 0.3, 18);
@@ -574,29 +536,20 @@
       const cx = PAD.left + (i + 0.5) * groupW;
       const data = monthMap[m];
 
-      // income bar
       const ih = (data.income / yMax) * cH;
       ctx.fillStyle = '#68d391';
       ctx.fillRect(cx - barW - 2, PAD.top + cH - ih, barW, ih);
 
-      // expense bar
       const eh = (data.expense / yMax) * cH;
       ctx.fillStyle = '#fc8181';
       ctx.fillRect(cx + 2, PAD.top + cH - eh, barW, eh);
 
-      // X label
-      const [yr, mo] = m.split('-');
-      const label = months.length > 4
-        ? `${parseInt(mo)}월`
-        : `${yr.slice(2)}년\n${parseInt(mo)}월`;
-
       ctx.fillStyle    = '#718096';
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(`${yr.slice(2)}/${parseInt(mo)}`, cx, PAD.top + cH + 8);
+      ctx.fillText(`${m.slice(2,4)}/${parseInt(m.slice(5,7))}`, cx, PAD.top + cH + 8);
     });
 
-    // Axis line
     ctx.strokeStyle = '#cbd5e0';
     ctx.lineWidth   = 1.5;
     ctx.beginPath();
@@ -627,8 +580,18 @@
     }).join('');
   }
 
-  /* ── CRUD ── */
-  function addTransaction() {
+  /* ── Supabase CRUD ── */
+  async function loadTransactions() {
+    const { data, error } = await db
+      .from('transactions')
+      .select('*')
+      .order('date', { ascending: false });
+    if (error) { console.error(error); return; }
+    transactions = data;
+    render();
+  }
+
+  async function addTransaction() {
     const type        = document.getElementById('type').value;
     const category    = document.getElementById('category').value;
     const description = document.getElementById('description').value.trim();
@@ -638,30 +601,31 @@
     if (!amount || amount <= 0) { alert('금액을 올바르게 입력해주세요.'); return; }
     if (!date)                   { alert('날짜를 선택해주세요.'); return; }
 
-    transactions.unshift({
+    const { error } = await db.from('transactions').insert({
       id: Date.now().toString(),
       type, category,
       description: description || category,
       amount, date
     });
 
-    save();
-    render();
+    if (error) { alert('저장 실패: ' + error.message); return; }
+
     document.getElementById('description').value = '';
     document.getElementById('amount').value = '';
+    await loadTransactions();
   }
 
-  function deleteTransaction(id) {
-    transactions = transactions.filter(t => t.id !== id);
-    save();
-    render();
+  async function deleteTransaction(id) {
+    const { error } = await db.from('transactions').delete().eq('id', id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    await loadTransactions();
   }
 
-  function clearAll() {
+  async function clearAll() {
     if (!confirm('모든 내역을 삭제할까요?')) return;
-    transactions = [];
-    save();
-    render();
+    const { error } = await db.from('transactions').delete().neq('id', '');
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    await loadTransactions();
   }
 
   /* ── Event listeners ── */
@@ -683,24 +647,19 @@
          <option value="기타">기타</option>`;
   });
 
-  // Redraw chart on resize
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      if (document.getElementById('dashboard-section').style.display !== 'none') {
-        renderDashboard();
-      }
-    }, 150);
+    resizeTimer = setTimeout(renderDashboard, 150);
   });
 
   /* ── Init ── */
-  function init() {
+  async function init() {
     const today = new Date();
     document.getElementById('current-date').textContent =
       today.toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
     document.getElementById('date').value = today.toISOString().split('T')[0];
-    render();
+    await loadTransactions();
   }
 
   init();
